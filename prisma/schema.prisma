@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  // provider = "prisma-erd-generator"
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  username  String
+  email     String     @unique
+  password  String
+  user_type            UserType
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+}
+
+model Product {
+  id              Int           @id @default(autoincrement())
+  name            String
+  description     String
+  basePrice       Float
+  totalQty        Int
+  available       Boolean
+  options         Option[]
+  varints          Varint[]
+  attribute       ProductAttribute[]
+}
+
+model Option {
+  id              Int               @id @default(autoincrement())
+  name            String
+  productId       Int
+
+  product         Product           @relation(fields: [productId], references: [id])
+  optionValues    OptionValue[]
+}
+
+model OptionValue {
+  id                  Int            @id @default(autoincrement())
+  name                String
+  optionId            Int
+  option              Option         @relation(fields: [optionId], references: [id])
+  optionValueVarint   OptionValueVarint[]
+}
+
+model Varint{
+  id                    Int           @id @default(autoincrement())
+  productId             Int
+  price                 Float
+  qty                   Int
+  available             Boolean
+  product               Product       @relation(fields: [productId], references: [id])
+  optionValueVarint     OptionValueVarint[]
+}
+
+model OptionValueVarint {
+  id              Int                 @id @default(autoincrement())
+  optionValueId   Int
+  VarintId        Int
+  optionValue     OptionValue         @relation(fields: [optionValueId], references: [id])
+  varint          Varint              @relation(fields: [VarintId], references: [id])
+}
+
+
+model ProductAttribute {
+  id          Int                     @id @default(autoincrement())
+  productId   Int
+  name        String
+  value       String
+  product     Product                 @relation(fields: [productId], references: [id])
+}
+
+enum UserType {
+  USER
+  SELLER
+  ADMIN
+}
+

@@ -1,0 +1,46 @@
+// model Category {
+//   id            Int         @id @default(autoincrement())
+//   name          String
+//   products      ProductCategory[]
+//   parentId      Int?        @map("parent_category_id")
+//   subCategories Category[]  @relation("SubCategory")
+//   parent        Category?   @relation("SubCategory", fields: [parentId], references: [id])
+// }
+
+// model ProductCategory {
+//   product       Product     @relation(fields: [productId], references: [id])
+//   productId     Int
+//   category   Category @relation(fields: [categoryId], references: [id])
+//   categoryId Int
+//   @@id([productId, categoryId])
+// }
+
+
+
+// model Order {
+//   id          Int      @id @default(autoincrement())
+//   userId      Int
+//   user        User     @relation(fields: [userId], references: [id])
+//   products    Product[]
+//   totalPrice  Float
+//   created_at  DateTime @default(now())
+//   updated_at  DateTime @updatedAt
+// }
+
+
+
+
+
+// enum CaseStatus {
+//   OPEN
+//   IN_PROGRESS
+//   RESOLVED
+// }
+
+// model Case {
+//   id          Int      @id @default(autoincrement())
+//   description String
+//   status      CaseStatus
+//   orderId     Int
+//   order       Order    @relation(fields: [orderId], references: [id])
+// }
