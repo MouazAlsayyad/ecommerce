@@ -11,30 +11,30 @@ export class ProductService {
   constructor(private readonly prisma:Prisma,){}
   private readonly logger = new Logger(ProductService.name);
 
-async createProduct(createProductDto:CreateProductDto) {
-  
-  const product = await this.prisma.product.create({
-    data:{
-      name:createProductDto.name,
-      available:createProductDto.available,
-      basePrice:createProductDto.basePrice,
-      description:createProductDto.description,
-      totalQty:createProductDto.totalQty,
-    }
-  })
-
-  if(createProductDto.attribute)
-    await this.createProductAttributes(product.id,createProductDto.attribute);
-
-  if (createProductDto.options) 
-    await this.createProductOptions(product.id, createProductDto.options);
-
-  if(createProductDto.varints && createProductDto.options)
-    await this.createVarints(product.id,createProductDto.varints)
+  async createProduct(createProductDto:CreateProductDto) {
     
+    const product = await this.prisma.product.create({
+      data:{
+        name:createProductDto.name,
+        available:createProductDto.available,
+        basePrice:createProductDto.basePrice,
+        description:createProductDto.description,
+        totalQty:createProductDto.totalQty,
+      }
+    })
 
-  return product;
-}
+    if(createProductDto.attribute)
+      await this.createProductAttributes(product.id,createProductDto.attribute);
+
+    if (createProductDto.options) 
+      await this.createProductOptions(product.id, createProductDto.options);
+
+    if(createProductDto.varints && createProductDto.options)
+      await this.createVarints(product.id,createProductDto.varints)
+      
+
+    return product;
+  }
 
 
 
@@ -90,14 +90,10 @@ async createProduct(createProductDto:CreateProductDto) {
       where:{id:productId},
       data:{
         name:updateProductDto.name,
-      available:updateProductDto.available,
-      basePrice:updateProductDto.basePrice,
-      description:updateProductDto.description,
-      totalQty:updateProductDto.totalQty,
-      },
-      select:{
-        options:true,
-        
+        available:updateProductDto.available,
+        basePrice:updateProductDto.basePrice,
+        description:updateProductDto.description,
+        totalQty:updateProductDto.totalQty,
       }
     })
     
@@ -105,15 +101,37 @@ async createProduct(createProductDto:CreateProductDto) {
       this.updateProductAttributes(productId,updateProductDto.attribute);
 
     if (updateProductDto.options) 
-      await this.updateProductOptions(productId, updateProductDto.options);
+      await this.addOptionsAndOptionValue(productId, updateProductDto.options);
 
     if(updateProductDto.varints)
-      await this.updateVarints(productId,updateProductDto.varints)
+      await this.updateAndAddVarints(productId,updateProductDto.varints)
 
       return product
   }
 
-  updateVarints(productId: number, varintsDTO:VarintDTO[]){
+  
+
+
+
+
+  async findAll() {
+    const products = await this.prisma.product.findMany();
+    return products
+  }
+
+
+  async remove(id: number): Promise<void> {
+    const product = await this.prisma.product.delete({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new CustomNotFoundException(`Product with ID ${id} not found`);
+    }
+  }
+
+
+  private updateAndAddVarints(productId: number, varintsDTO:VarintDTO[]){
     return Promise.all(varintsDTO.map(async (varintDTO) => {
       const optionValues = varintDTO.optionValueVarint.map((optionValue)=>{
         return {
@@ -176,27 +194,7 @@ async createProduct(createProductDto:CreateProductDto) {
 
     }));
   }
-
-
-
-
-  async findAll() {
-    const products = await this.prisma.product.findMany();
-    return products
-  }
-
-
-  async remove(id: number): Promise<void> {
-    const product = await this.prisma.product.delete({
-      where: { id },
-    });
-
-    if (!product) {
-      throw new CustomNotFoundException(`Product with ID ${id} not found`);
-    }
-  }
-
-  private async updateProductOptions(productId: number, productOptions:OptionDTO[]){
+  private async addOptionsAndOptionValue(productId: number, productOptions:OptionDTO[]){
     await Promise.all(productOptions.map(async (optionDto) => {
       let option = await this.prisma.option.findFirst({
         where:{
@@ -283,7 +281,7 @@ async createProduct(createProductDto:CreateProductDto) {
       this.createAttribute(productId,attr.name,attr.value)
     ));
   }
-  async createVarints(productId: number, varintsDTO:VarintDTO[]) {
+  private async createVarints(productId: number, varintsDTO:VarintDTO[]) {
     return Promise.all(varintsDTO.map(async (varintDTO) => {
       const varint = await this.createVarint(productId,varintDTO.available,varintDTO.price,varintDTO.qty)
       await Promise.all(varintDTO.optionValueVarint.map(async (ValueVarint)=>{
