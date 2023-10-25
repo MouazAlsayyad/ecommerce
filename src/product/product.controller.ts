@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 // import { CreateProductDto } from './dto/create-product.dto';
 import { ProductService } from './product.service';
+import { UpdateVarintDTO } from './dto/update-product.dto';
 
 @Controller('product')
 export class ProductController {
@@ -22,8 +23,23 @@ export class ProductController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto) {
-    return this.productService.update(+id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateProductDto) {
+    return this.productService.update(+id, updateProductDto);
+  }
+
+  @Patch(':productId/Option/:id')
+  updateOption(@Param('id') id: string, @Param('productId') productId: string, @Body() updateOptionDto) {
+    return this.productService.updateOption(+productId,+id, updateOptionDto);
+  }
+
+  @Patch(':OptionId/OptionValue/:id')
+  updateOptionValue(@Param('id') id: string, @Param('OptionId') OptionId: string, @Body() updateOptionValueDTO) {
+    return this.productService.updateOptionValue(+OptionId,+id, updateOptionValueDTO);
+  }
+
+  @Patch(':productId/varint/:id')
+  updateVarint(@Param('id') id: string, @Param('productId') productId: string, @Body() updateVarintDTO:UpdateVarintDTO){
+    return this.productService.updateVarint(+productId,+id, updateVarintDTO);
   }
 
   @Delete(':id')

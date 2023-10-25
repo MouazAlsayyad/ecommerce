@@ -1,10 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 
 import { Prisma } from 'src/prisma/prisma.service';
 import { CustomNotFoundException } from 'src/unit/not-found.exception';
 import { CreateProductDto, OptionDTO, ProductAttributeDTO, VarintDTO } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-
+import { UpdateOptionDTO, UpdateOptionValueDTO, UpdateProductDto, UpdateVarintDTO } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -36,12 +35,6 @@ export class ProductService {
     return product;
   }
 
-
-
-
-
-
-
   async findOne(id:number){
     const product = await this.prisma.product.findUnique({
       where:{
@@ -56,12 +49,14 @@ export class ProductService {
         totalQty:true,
         attribute:{
           select:{
+            id:true,
             name:true,
             value:true
           },
         },
         varints:{
           select:{
+            id:true,
             available:true,
             price:true,
             qty:true,
@@ -69,9 +64,22 @@ export class ProductService {
               select:{
                 optionValue:{
                   select:{
+                    id:true,
                     name:true
                   }
                 }
+              }
+            }
+          }
+        },
+        options:{
+          select:{
+            id:true,
+            name:true,
+            optionValues:{
+              select:{
+                id:true,
+                name:true
               }
             }
           }
@@ -109,14 +117,9 @@ export class ProductService {
       return product
   }
 
-  
-
-
-
-
   async findAll() {
-    const products = await this.prisma.product.findMany();
-    return products
+    return await this.prisma.product.findMany();
+    
   }
 
 
@@ -128,6 +131,112 @@ export class ProductService {
     if (!product) {
       throw new CustomNotFoundException(`Product with ID ${id} not found`);
     }
+  }
+
+
+  async updateOption(productId:number,id:number,updateOptionDto:UpdateOptionDTO){
+    const option =this.prisma.option.findFirst({
+      where:{
+        AND:[
+          {
+            name:updateOptionDto.name
+          },
+          {
+            productId
+          }
+        ]
+      }
+    })
+    if(option){
+      throw new ConflictException('product already has this option')
+    }
+
+    return await this.prisma.option.update({
+      where:{
+        id,
+      },
+      data:{
+        name:updateOptionDto.name
+      }
+    })
+  }
+
+  async updateOptionValue(optionId:number,id:number,UpdateOptionValue:UpdateOptionValueDTO){
+    const OptionValue =this.prisma.optionValue.findFirst({
+      where:{
+        AND:[
+          {
+            name:UpdateOptionValue.name
+          },
+          {
+            optionId
+          }
+        ]
+      }
+    })
+    if(OptionValue)
+      throw new ConflictException(`option already has this OptionValue`)
+    
+    return await this.prisma.optionValue.update({
+      where:{
+        id,
+      },
+      data:{
+        name:UpdateOptionValue.name
+      }
+    })
+  }
+
+  async updateVarint(productId:number,id:number, updateVarintDTO:UpdateVarintDTO){
+    const optionValues = updateVarintDTO.optionValueVarint.map((optionValue)=>{
+      return {
+        name: optionValue.optionValue.name
+      }
+    })
+
+    const varint = await this.prisma.varint.findFirst({
+      where:{
+        AND:[
+          {
+            productId
+          },
+          {
+            optionValueVarint:{
+              every:{
+                optionValue:{
+                  AND:optionValues
+                }
+              }
+            }
+          }
+        ]
+      }
+    })
+
+    if(varint)
+      throw new ConflictException(`product already has varint with this options`)
+    
+      await Promise.all(updateVarintDTO.optionValueVarint.map(async (ValueVarint)=>{
+        const optionValue = await this.prisma.optionValue.findFirst({
+          where:{
+            AND:[
+              {
+                name:ValueVarint.optionValue.name
+              },
+              {
+                option:{
+                  productId
+                }
+              }
+              
+            ]
+          }
+        })
+        if(!optionValue)
+          throw new ConflictException(`not found ${ValueVarint.optionValue.name}`)
+
+        await this.createOptionValueVarint(id,optionValue.id)
+      }))
   }
 
 
@@ -285,7 +394,7 @@ export class ProductService {
     return Promise.all(varintsDTO.map(async (varintDTO) => {
       const varint = await this.createVarint(productId,varintDTO.available,varintDTO.price,varintDTO.qty)
       await Promise.all(varintDTO.optionValueVarint.map(async (ValueVarint)=>{
-        const optionValue = await this.prisma.optionValue.findFirstOrThrow({
+        const optionValue = await this.prisma.optionValue.findFirst({
           where:{
             AND:[
               {
@@ -300,6 +409,9 @@ export class ProductService {
             ]
           }
         })
+        if(!optionValue)
+          throw new ConflictException(`not found ${ValueVarint.optionValue.name}`)
+        
         await this.createOptionValueVarint(varint.id,optionValue.id)
       }))
 
