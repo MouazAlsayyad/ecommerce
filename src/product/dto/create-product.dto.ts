@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsNumber, IsString } from 'class-validator';
 
-export class ProductDTO {
+export class CreateProductDto {  
   @IsString()
   @ApiProperty()
   name: string;
@@ -38,8 +38,8 @@ export class OptionDTO {
   name: string;
 
 
-  @ApiProperty({ type: ProductDTO })
-  product: ProductDTO;
+  @ApiProperty({ type: CreateProductDto })
+  product: CreateProductDto;
 
   @ApiProperty()
   optionValues: OptionValueDTO[];
@@ -70,8 +70,8 @@ export class VarintDTO {
   @ApiProperty()
   available: boolean;
 
-  @ApiProperty({ type: ProductDTO })
-  product: ProductDTO;
+  @ApiProperty({ type: CreateProductDto })
+  product: CreateProductDto;
 
   @ApiProperty()
   optionValueVarint: OptionValueVarintDTO[];
