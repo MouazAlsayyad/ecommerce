@@ -10,16 +10,17 @@ export class CreateProductDto {
   @ApiProperty()
   description: string;
 
+
+  @IsString()
+  @ApiProperty({required:false})
+  coverImage: string;
+
   @IsNumber()
   @ApiProperty()
   basePrice: number;
 
-  @IsInt()
-  @ApiProperty()
-  totalQty: number;
-
   @IsBoolean()
-  @ApiProperty()
+  @ApiProperty({required:false})
   available: boolean;
 
   @ApiProperty()
@@ -43,6 +44,9 @@ export class OptionDTO {
 
   @ApiProperty()
   optionValues: OptionValueDTO[];
+
+  @ApiProperty()
+  optionValueVarint: OptionValueVarintDTO[];
 }
 
 export class OptionValueDTO {
@@ -60,15 +64,19 @@ export class OptionValueDTO {
 export class VarintDTO {
   @IsNumber()
   @ApiProperty()
-  price: number;
+  price: number; 
 
   @IsInt()
   @ApiProperty()
   qty: number;
 
   @IsBoolean()
-  @ApiProperty()
+  @ApiProperty({required:false})
   available: boolean;
+
+  @IsString()
+  @ApiProperty({required:false})
+  image: string;
 
   @ApiProperty({ type: CreateProductDto })
   product: CreateProductDto;
@@ -80,6 +88,9 @@ export class VarintDTO {
 export class OptionValueVarintDTO {
   @ApiProperty({ type: OptionValueDTO })
   optionValue: OptionValueDTO;
+
+  @ApiProperty({ type: OptionDTO })
+  option: OptionDTO;
 
   @ApiProperty({ type: VarintDTO })
   varint: VarintDTO;

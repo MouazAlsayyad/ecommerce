@@ -1,14 +1,16 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-// import { CreateProductDto } from './dto/create-product.dto';
-import { ProductService } from './product.service';
+// import { UpdateVarintDTO } from './dto/update-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateVarintDTO } from './dto/update-product.dto';
+import { ProductService } from './product.service';
+
 
 @Controller('product')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  create(@Body() createProductDto) { 
+  create(@Body() createProductDto:CreateProductDto) { 
     return this.productService.createProduct(createProductDto);
   }
 
@@ -27,12 +29,12 @@ export class ProductController {
     return this.productService.update(+id, updateProductDto);
   }
 
-  @Patch(':productId/Option/:id')
+  @Patch(':productId/option/:id')
   updateOption(@Param('id') id: string, @Param('productId') productId: string, @Body() updateOptionDto) {
     return this.productService.updateOption(+productId,+id, updateOptionDto);
   }
 
-  @Patch(':OptionId/OptionValue/:id')
+  @Patch(':productId/option/:OptionId/optionValue/:id')
   updateOptionValue(@Param('id') id: string, @Param('OptionId') OptionId: string, @Body() updateOptionValueDTO) {
     return this.productService.updateOptionValue(+OptionId,+id, updateOptionValueDTO);
   }
@@ -45,5 +47,24 @@ export class ProductController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productService.remove(+id);
+  }
+
+  @Delete(':productId/attribute/:id')
+  removeAttribute(@Param('productId') productId: string,@Param('id') id: string) {
+    return this.productService.removeAttribute(+productId,+id);
+  }
+
+  @Delete(':productId/varint/:id')
+  removeVarint(@Param('productId') productId: string,@Param('id') id: string) {
+    return this.productService.removeVarint(+productId,+id);
+  }
+
+  @Delete('optionValue/:id')
+  removeOptionValue(@Param('id') id: string) {
+    return this.productService.removeOptionValue(+id);
+  }
+  @Delete(':productId/option/:id')
+  removeOption(@Param('productId') productId: string,@Param('id') id: string) {
+    return this.productService.removeOption(+productId,+id);
   }
 }

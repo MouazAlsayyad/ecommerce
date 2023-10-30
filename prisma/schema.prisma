@@ -27,26 +27,28 @@ model Product {
   name            String
   description     String
   basePrice       Float
-  totalQty        Int
-  available       Boolean
+  available       Boolean       @default(true)
+  coverImage      String?
   options         Option[]
   varints          Varint[]
   attribute       ProductAttribute[]
 }
 
 model Option {
-  id              Int               @id @default(autoincrement())
-  name            String
-  productId       Int
+  id                    Int               @id @default(autoincrement())
+  name                  String
+  productId             Int
 
-  product         Product           @relation(fields: [productId], references: [id])
-  optionValues    OptionValue[]
+  product               Product           @relation(fields: [productId], references: [id])
+  optionValues          OptionValue[]
+  optionValueVarint     OptionValueVarint[]
 }
 
 model OptionValue {
   id                  Int            @id @default(autoincrement())
   name                String
   optionId            Int
+
   option              Option         @relation(fields: [optionId], references: [id])
   optionValueVarint   OptionValueVarint[]
 }
@@ -56,17 +58,20 @@ model Varint{
   productId             Int
   price                 Float
   qty                   Int
-  available             Boolean
+  image                 String?
+  available             Boolean       @default(true)
   product               Product       @relation(fields: [productId], references: [id])
   optionValueVarint     OptionValueVarint[]
 }
 
 model OptionValueVarint {
-  id              Int                 @id @default(autoincrement())
   optionValueId   Int
   VarintId        Int
+  optionId        Int
+  option          Option              @relation(fields: [optionId], references: [id])
   optionValue     OptionValue         @relation(fields: [optionValueId], references: [id])
   varint          Varint              @relation(fields: [VarintId], references: [id])
+  @@id([VarintId,optionId])
 }
 
 
@@ -76,6 +81,13 @@ model ProductAttribute {
   name        String
   value       String
   product     Product                 @relation(fields: [productId], references: [id])
+}
+
+model Image {
+  id       Int      @id @default(autoincrement())
+  filename String
+  path     String
+  createdAt DateTime @default(now())
 }
 
 enum UserType {
