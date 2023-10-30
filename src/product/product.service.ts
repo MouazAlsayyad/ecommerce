@@ -1,14 +1,15 @@
 import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 
 
-import { Prisma } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CustomNotFoundException } from 'src/unit/not-found.exception';
 import { CreateProductDto, OptionDTO, ProductAttributeDTO, VarintDTO } from './dto/create-product.dto';
-import { UpdateOptionDTO, UpdateOptionValueDTO, UpdateProductDto, UpdateVarintDTO } from './dto/update-product.dto';
+import { UpdateAttributeDTO, UpdateOptionDTO, UpdateOptionValueDTO, UpdateProductDto, UpdateVarintDTO } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
-  constructor(private readonly prisma: Prisma,) { }
+  constructor(private readonly prisma: PrismaService,) { }
   private readonly logger = new Logger(ProductService.name);
   async createProduct(createProductDto: CreateProductDto) {
     return this.prisma.$transaction(async (prisma) => {
@@ -102,32 +103,39 @@ export class ProductService {
   }
 
   async update(productId: number, updateProductDto: UpdateProductDto) {
+    try { 
     return this.prisma.$transaction(async (prisma) => {
-    const product = await this.prisma.product.update({
+    await this.findOne(productId)
+
+    const product = await prisma.product.update({
       where: { id: productId },
       data: {
         name: updateProductDto.name,
         available: updateProductDto.available,
         basePrice: updateProductDto.basePrice,
         description: updateProductDto.description,
-        coverImage: updateProductDto.coverImage
-      }
+        coverImage: updateProductDto.coverImage,
+      },
+    });
+
+    if (updateProductDto.attribute) {
+      await this.updateProductAttributes(productId, updateProductDto.attribute, prisma);
+    }
+
+    if (updateProductDto.options){
+      await this.addOptionsAndOptionValue(productId, updateProductDto.options,prisma);
+    }
+
+    if (updateProductDto.varints){
+      await this.updateAndAddVarints(productId, updateProductDto.varints,prisma)
+    }
+
+    return product
     })
-    try {
-      if (updateProductDto.attribute)
-        this.updateProductAttributes(productId, updateProductDto.attribute,prisma);
-
-      if (updateProductDto.options)
-        await this.addOptionsAndOptionValue(productId, updateProductDto.options,prisma);
-
-      if (updateProductDto.varints)
-        await this.updateAndAddVarints(productId, updateProductDto.varints,prisma)
     } catch (error) {
       this.logger.error(error)
       return error
     }
-    return product
-    })
   }
 
   async findAll() {
@@ -138,6 +146,8 @@ export class ProductService {
 
   async remove(id: number) {
     return this.prisma.$transaction(async (prisma) => {
+      await this.findOne(id)
+    try { 
     await prisma.productAttribute.deleteMany({
       where: {
         productId: id
@@ -185,281 +195,293 @@ export class ProductService {
     }
 
     return product
+  } catch (error) {
+    this.logger.error(error)
+    return error
+  }
   })
+
   }
 
   async removeAttribute(productId: number, id: number) {
     return this.prisma.$transaction(async (prisma) => {
-      return await prisma.productAttribute.delete({
-        where: {
-          id,
-          productId
-        }
-      })
+      try{
+        return await prisma.productAttribute.delete({
+          where: {
+            id,
+            productId
+          }
+        })
+      } catch (error) {
+        this.logger.error(error)
+        return error
+      }
     })
   }
 
   async removeVarint(productId: number, id: number) {
     return this.prisma.$transaction(async (prisma) => {
-      await prisma.optionValueVarint.deleteMany({
-        where: {
-          VarintId: id
-        }
-      })
-
-      return await prisma.varint.delete({
-        where: {
-          id,
-          productId
-        }
-      })
+      try{
+        await prisma.optionValueVarint.deleteMany({
+          where: {
+            VarintId: id
+          }
+        })
+        return await prisma.varint.delete({
+          where: {
+            id,
+            productId
+          }
+        })
+      }catch (error) {
+        this.logger.error(error)
+        return error
+      }
   })
   }
 
   async removeOptionValue(id: number) {
     return this.prisma.$transaction(async (prisma) => {
-      await prisma.optionValueVarint.deleteMany({
-        where: {
-          optionValueId: id
-        }
-      })
-
-      return await prisma.optionValue.delete({
-        where: {
-          id
-        }
-      })
+      try{
+        await prisma.optionValueVarint.deleteMany({
+          where: {
+            optionValueId: id
+          }
+        })
+  
+        return await prisma.optionValue.delete({
+          where: {
+            id
+          }
+        })
+      }catch (error) {
+        this.logger.error(error)
+        return error
+      }
+      
   })
   }
 
   async removeOption(productId: number, id: number) {
     return this.prisma.$transaction(async (prisma) => {
-      await prisma.optionValueVarint.deleteMany({
-        where: {
-          optionValue: {
+      try{
+        await prisma.optionValueVarint.deleteMany({
+          where: {
+            optionValue: {
+              optionId: id
+            }
+          }
+        })
+  
+        await prisma.optionValue.deleteMany({
+          where: {
             optionId: id
           }
-        }
-      })
-
-      await prisma.optionValue.deleteMany({
-        where: {
-          optionId: id
-        }
-      })
-
-      return await prisma.option.delete({
-        where: {
-          id
-        }
-      })
+        })
+  
+        return await prisma.option.delete({
+          where: {
+            id
+          }
+        })
+      }catch (error) {
+        this.logger.error(error)
+        return error
+      }
   })
   }
 
 
   async updateOption(productId: number, id: number, updateOptionDto: UpdateOptionDTO) {
     return this.prisma.$transaction(async (prisma) => {
-      const option = await prisma.option.findFirst({
-        where: {
-          AND: [
-            {
-              name: updateOptionDto.name
-            },
-            {
-              productId
-            }
-          ]
+      try{
+        const option = await prisma.option.findFirst({
+          where: {
+            AND: [
+              {
+                name: updateOptionDto.name
+              },
+              {
+                productId
+              }
+            ]
+          }
+        })
+  
+        if (option) {
+          throw new ConflictException('product already has this option')
         }
-      })
-
-      if (option) {
-        throw new ConflictException('product already has this option')
+  
+        return await prisma.option.update({
+          where: {
+            id,
+          },
+          data: {
+            name: updateOptionDto.name
+          }
+        })
+      } catch (error) {
+        this.logger.error(error)
+        return error
       }
-
-      return await prisma.option.update({
-        where: {
-          id,
-        },
-        data: {
-          name: updateOptionDto.name
-        }
-      })
   })
   }
+
+  async updateAttribute(productId:number,id:number, updateAttributeDTO:UpdateAttributeDTO){
+    return this.prisma.$transaction(async (prisma) => {
+    const option = await prisma.productAttribute.update({
+      where:{
+        id
+      },
+      data:{
+        name:updateAttributeDTO.name,
+        value:updateAttributeDTO.value
+      }
+    })
+
+    return option
+  })
+  }
+
 
   async updateOptionValue(optionId: number, id: number, UpdateOptionValue: UpdateOptionValueDTO) {
     return this.prisma.$transaction(async (prisma) => {
-      const OptionValue = await prisma.optionValue.findFirst({
-        where: {
-          AND: [
-            {
-              name: UpdateOptionValue.name
-            },
-            {
-              optionId
-            }
-          ]
-        }
-      })
-      if (OptionValue)
-        throw new ConflictException(`option already has this OptionValue`)
-
-      return await prisma.optionValue.update({
-        where: {
-          id,
-        },
-        data: {
-          name: UpdateOptionValue.name
-        }
-      })
-  })
-  }
-
-
-  private async varintExists(productId:number,optionValues,prisma:any){
-
-
-    const existsVarint =  await prisma.varint.findFirst({
-      where: {
-        AND: [
-          {
-            productId
+      try {
+        const OptionValue = await prisma.optionValue.findFirst({
+          where: {
+            AND: [
+              {
+                name: UpdateOptionValue.name
+              },
+              {
+                optionId
+              }
+            ]
+          }
+        })
+        if (OptionValue)
+          throw new ConflictException(`option already has this OptionValue`)
+  
+        return await prisma.optionValue.update({
+          where: {
+            id,
           },
-          {
-            optionValueVarint: {
-              none: {
-                optionValue: {
-                  AND: optionValues
-                }
-              }
-            }
+          data: {
+            name: UpdateOptionValue.name
           }
-        ]
-      },
-      select: {
-        id: true,
-        optionValueVarint: {
-          select: {
-            optionValue: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
-      },
-
-    })
-
-    const outputArray = existsVarint?.optionValueVarint.map(item => {
-      return { name: item.optionValue.name };
-    });
-
-    if (this.arraysEqual(outputArray, optionValues)) {
-      throw new ConflictException('product already has varint with this options')
-    }
+        })
+      } catch (error) {
+        this.logger.error(error)
+        return error
+      }
+  })
   }
 
   async updateVarint(productId: number, id: number, updateVarintDTO: UpdateVarintDTO) {
     return this.prisma.$transaction(async (prisma) => {
-      let optionValues
-      if (updateVarintDTO.optionValueVarint) {
-        optionValues = updateVarintDTO.optionValueVarint.map((optionValue) => {
-          return {
-            name: optionValue.optionValue.name
-          }
-        })
-
-        const existsVarint = await prisma.varint.findFirst({
-          where: {
-            AND: [
-              {
-                productId
-              },
-              {
-                optionValueVarint: {
-                  none: {
-                    optionValue: {
-                      AND: optionValues
+      try{
+        let optionValues
+        if (updateVarintDTO.optionValueVarint) {
+          optionValues = updateVarintDTO.optionValueVarint.map((optionValue) => {
+            return {
+              name: optionValue.optionValue.name
+            }
+          })
+  
+          const existsVarint = await prisma.varint.findFirst({
+            where: {
+              AND: [
+                {
+                  productId
+                },
+                {
+                  optionValueVarint: {
+                    none: {
+                      optionValue: {
+                        AND: optionValues
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            select: {
+              id: true,
+              optionValueVarint: {
+                select: {
+                  optionValue: {
+                    select: {
+                      name: true
                     }
                   }
                 }
               }
-            ]
+            },
+  
+          })
+          const outputArray = existsVarint?.optionValueVarint.map(item => {
+            return { name: item.optionValue.name };
+          });
+  
+  
+          if (this.arraysEqual(outputArray, optionValues)) {
+            throw new ConflictException('product already has varint with this options')
+          }
+  
+          await Promise.all(updateVarintDTO.optionValueVarint.map(async (ValueVarint) => {
+            const optionValue = await prisma.optionValue.findFirst({
+              where: {
+                AND: [
+                  {
+                    name: ValueVarint.optionValue.name
+                  },
+                  {
+                    option: {
+                      productId
+                    }
+                  }
+  
+                ]
+              }
+            })
+            if (!optionValue)
+              throw new ConflictException(`not found ${ValueVarint.optionValue.name}`)
+  
+            await this.createOptionValueVarint(id, optionValue.id, optionValue.optionId,prisma)
+          }))
+        }
+  
+        return await prisma.varint.update({
+          where: {
+            id,
+          },
+          data: {
+            available: updateVarintDTO.available,
+            price: updateVarintDTO.price,
+            qty: updateVarintDTO.qty
           },
           select: {
             id: true,
+            available: true,
+            price: true,
+            qty: true,
             optionValueVarint: {
               select: {
-                optionValue: {
-                  select: {
-                    name: true
-                  }
-                }
+                optionValue: true
               }
             }
-          },
-
-        })
-        const outputArray = existsVarint?.optionValueVarint.map(item => {
-          return { name: item.optionValue.name };
-        });
-
-
-        if (this.arraysEqual(outputArray, optionValues)) {
-          throw new ConflictException('product already has varint with this options')
-        }
-
-        await Promise.all(updateVarintDTO.optionValueVarint.map(async (ValueVarint) => {
-          const optionValue = await prisma.optionValue.findFirst({
-            where: {
-              AND: [
-                {
-                  name: ValueVarint.optionValue.name
-                },
-                {
-                  option: {
-                    productId
-                  }
-                }
-
-              ]
-            }
-          })
-          if (!optionValue)
-            throw new ConflictException(`not found ${ValueVarint.optionValue.name}`)
-
-          await this.createOptionValueVarint(id, optionValue.id, optionValue.optionId,prisma)
-        }))
-      }
-
-      return await prisma.varint.update({
-        where: {
-          id,
-        },
-        data: {
-          available: updateVarintDTO.available,
-          price: updateVarintDTO.price,
-          qty: updateVarintDTO.qty
-        },
-        select: {
-          id: true,
-          available: true,
-          price: true,
-          qty: true,
-          optionValueVarint: {
-            select: {
-              optionValue: true
-            }
           }
-        }
-      })
+        })
+
+      }catch (error) {
+        this.logger.error(error)
+        return error
+      }
   })
   }
 
 
-  private async createVarints(productId: number, varintsDTO: VarintDTO[],prisma:any) {
-    // console.log(varintsDTO)
+  private async createVarints(productId: number, varintsDTO: VarintDTO[],prisma:Prisma.TransactionClient) {
     return Promise.all(varintsDTO.map(async (varintDTO) => {
       const varint = await this.createVarint(productId, varintDTO.available, varintDTO.price, varintDTO.qty, varintDTO.image,prisma)
       await Promise.all(varintDTO.optionValueVarint.map(async (ValueVarint) => {
@@ -490,7 +512,7 @@ export class ProductService {
     }));
   }
 
-  private async createOptionValueVarint(varintId: number, optionValueId: number, optionId: number,prisma:any) {
+  private async createOptionValueVarint(varintId: number, optionValueId: number, optionId: number,prisma:Prisma.TransactionClient) {
     const optionValueVarint = await prisma.optionValueVarint.findUnique({
       where: {
         VarintId_optionId: {
@@ -537,7 +559,7 @@ export class ProductService {
     return true;
   }
 
-  private async updateAndAddVarints(productId: number, varintsDTO: VarintDTO[],prisma:any) {
+  private async updateAndAddVarints(productId: number, varintsDTO: VarintDTO[],prisma:Prisma.TransactionClient) {
     return await Promise.all(varintsDTO.map(async (varintDTO) => {
       const optionValues = varintDTO.optionValueVarint.map((optionValue) => {
         return {
@@ -545,7 +567,7 @@ export class ProductService {
         }
       })
 
-      let varint = await prisma.varint.findFirst({
+      const varint = await prisma.varint.findFirst({ 
         where: {
           AND: [
             {
@@ -586,7 +608,7 @@ export class ProductService {
       }
 
       if (!varint) {
-        varint = await this.createVarint(productId, varintDTO.available, varintDTO.price, varintDTO.qty, varint.image,prisma)
+        const newVarint = await this.createVarint(productId, varintDTO.available, varintDTO.price, varintDTO.qty, varintDTO.image,prisma)
         await Promise.all(varintDTO.optionValueVarint.map(async (ValueVarint) => {
           const optionValue = await prisma.optionValue.findFirstOrThrow({
             where: {
@@ -605,24 +627,24 @@ export class ProductService {
           })
           await this.createOptionValueVarint(varint.id, optionValue.id, optionValue.optionId,prisma)
         }))
-        return varint;
+        return newVarint;
       }
 
-      prisma.varint.update({
+      await prisma.varint.update({
         where: {
           id: varint.id
         },
         data: {
-          available: varint.available,
-          price: varint.price,
-          qty: varint.qty,
-          image: varint.image
+          available: varintDTO.available,
+          price: varintDTO.price,
+          qty: varintDTO.qty,
+          image: varintDTO.image
         }
       })
 
     }));
   }
-  private async addOptionsAndOptionValue(productId: number, productOptions: OptionDTO[],prisma:any) {
+  private async addOptionsAndOptionValue(productId: number, productOptions: OptionDTO[],prisma:Prisma.TransactionClient) {
     await Promise.all(productOptions.map(async (optionDto) => {
       let option = await prisma.option.findFirst({
         where: {
@@ -663,9 +685,10 @@ export class ProductService {
 
     }))
   }
-  private async updateProductAttributes(productId: number, productAttributes: ProductAttributeDTO[],prisma:any) {
+  private async updateProductAttributes(productId: number, productAttributes: ProductAttributeDTO[],prisma:Prisma.TransactionClient) {
+  try{
     await Promise.all(productAttributes.map(async (attr) => {
-      const productAttribute = await prisma.productAttribute.findFirst({
+      const productAttribute = await prisma.productAttribute.findFirst({  
         where: {
           AND: [
             {
@@ -693,10 +716,15 @@ export class ProductService {
         await this.createAttribute(productId, attr.name, attr.value,prisma)
       }
     }))
+  }catch(error){
+    this.logger.error(error) 
+    return error
+  }
+    
 
   }
 
-  private async createProductOptions(productId: number, productOptions: OptionDTO[],prisma:any) {
+  private async createProductOptions(productId: number, productOptions: OptionDTO[],prisma:Prisma.TransactionClient) {
     await Promise.all(productOptions.map(async (optionDto) => {
 
       const option = await this.createOption(productId, optionDto.name,prisma)
@@ -707,13 +735,13 @@ export class ProductService {
       }))
     }));
   }
-  private async createProductAttributes(productId: number, productAttributes: ProductAttributeDTO[],prisma:any) {
+  private async createProductAttributes(productId: number, productAttributes: ProductAttributeDTO[],prisma:Prisma.TransactionClient) {
     await Promise.all(productAttributes.map((attr) =>
       this.createAttribute(productId, attr.name, attr.value,prisma)
     ));
   }
 
-  private async createVarint(productId: number, available: boolean, price: number, qty: number, image: string,prisma:any) {
+  private async createVarint(productId: number, available: boolean, price: number, qty: number, image: string,prisma:Prisma.TransactionClient) {
     try {
       return await prisma.varint.create({
         data: {
@@ -732,8 +760,22 @@ export class ProductService {
       throw new BadRequestException('Failed to create the varint');
     }
   }
-  private async createAttribute(productId: number, name: string, value: string,prisma:any) {
+  private async createAttribute(productId: number, name: string, value: string,prisma:Prisma.TransactionClient) {
     try {
+      const productAttribute = await prisma.productAttribute.findFirst({
+        where:{
+          AND:[
+            {
+              productId
+            },
+            {
+              name
+            }
+          ]
+        }
+      })
+      if(productAttribute)
+        throw new BadRequestException(`The product already has this Attribute ${name}`);
       return await prisma.productAttribute.create({
         data: {
           productId,
@@ -745,7 +787,7 @@ export class ProductService {
       throw new BadRequestException('Failed to create the product attribute');
     }
   }
-  private async createOption(productId: number, name: string,prisma:any) {
+  private async createOption(productId: number, name: string,prisma:Prisma.TransactionClient) {
     try {
       return await prisma.option.create({
         data: {
@@ -758,7 +800,7 @@ export class ProductService {
       throw new BadRequestException('Failed to create the option');
     }
   }
-  private async createOptionValue(optionId: number, name: string,prisma:any) {
+  private async createOptionValue(optionId: number, name: string,prisma:Prisma.TransactionClient) {
     return await prisma.optionValue.create({
       data: {
         name,
