@@ -1,6 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsInt, IsNumber, IsString } from 'class-validator';
 
+export class ProductFilterDTO {
+  @ApiProperty({ required: false })
+  name?: string;
+
+  @ApiProperty({ required: false })
+  maxPrice?: number;
+
+  @ApiProperty({ required: false })
+  minPrice?: number;
+}
+
+
 export class CreateProductDto {  
   @IsString()
   @ApiProperty()

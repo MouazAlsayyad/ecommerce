@@ -13,12 +13,9 @@ export class ImageController {
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     const { filename, path } = file;
     const savedImage = await this.imageService.createImage(filename, path);
-    console.log(savedImage.path)
     return {
       filename:savedImage.filename,
       id: savedImage.id,
-      // path:`uploads`+'\\'+savedImage.filename
-      // path:`uploads\\${savedImage.filename}`
       path:savedImage.path
 
     };
